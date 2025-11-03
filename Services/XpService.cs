@@ -1,7 +1,9 @@
-﻿using System.Collections.Concurrent;
+﻿using MUGS_bot.Helpers;
+using MUGS_bot.Models;
+using System.Collections.Concurrent;
 using System.Text.Json;
 
-namespace MUGS_bot;
+namespace MUGS_bot.Services;
 
 public class XpService
 {
@@ -120,7 +122,6 @@ public class XpService
         File.WriteAllText(_path, json);
     }
 
-    // Serialization helpers
     private sealed record SerializedRecord(ulong GuildId, ulong UserId, UserState State)
     {
         public UserState ToUserState() => State;

@@ -1,8 +1,9 @@
 ﻿using Microsoft.Extensions.Configuration;
+using MUGS_bot.Helpers;
 using NetCord;
 using NetCord.Gateway;
 
-namespace MUGS_bot
+namespace MUGS_bot.Services
 {
     public class RoleSyncService
     {
@@ -15,7 +16,7 @@ namespace MUGS_bot
         {
             var hex = _cfg[$"LevelRoles:ColorHex:{c}"]?.TrimStart('#') ?? "FFFFFF";
             if (uint.TryParse(hex, System.Globalization.NumberStyles.HexNumber, null, out var rgb))
-                return new Color((byte)((rgb >> 16) & 0xFF), (byte)((rgb >> 8) & 0xFF), (byte)(rgb & 0xFF));
+                return new Color((byte)(rgb >> 16 & 0xFF), (byte)(rgb >> 8 & 0xFF), (byte)(rgb & 0xFF));
             return new Color(255, 255, 255);
         }
 
@@ -26,7 +27,6 @@ namespace MUGS_bot
             var wantedName = $"{Prefix(cat)} {level}";
             var color = RoleColor(cat);
 
-            // 1) ensure role exists
             var roles = await guild.GetRolesAsync();
             var role = roles.FirstOrDefault(r => string.Equals(r.Name, wantedName, StringComparison.Ordinal));
 
@@ -41,7 +41,6 @@ namespace MUGS_bot
                 });
             }
 
-            // 2) remove any previous level-roles for this category
             var prefix = Prefix(cat);
             var toRemove = roles.Where(r => r.Name.StartsWith(prefix + " ", StringComparison.Ordinal) && r.Id != role.Id)
                                 .Select(r => r.Id)
@@ -60,20 +59,17 @@ namespace MUGS_bot
                 }
             }
 
-            // 3) add the wanted role
             await guild.AddUserRoleAsync(userId, role.Id);
         }
 
         public async Task RemoveAllCategoryRolesAsync(Guild guild, ulong userId)
         {
-            // build all level-role prefixes, e.g. "Sociální sítě Lv. "
             var prefixes = Enum.GetValues<XpCategory>()
                 .Select(c => Prefix(c) + " ")
                 .ToList();
 
             var roles = await guild.GetRolesAsync();
 
-            // every role that looks like a category level role
             var candidateRoleIds = roles
                 .Where(r => prefixes.Any(p => r.Name.StartsWith(p, StringComparison.Ordinal)))
                 .Select(r => r.Id)

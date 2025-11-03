@@ -1,6 +1,7 @@
 ﻿using CsvHelper;
 using CsvHelper.Configuration;
 using Microsoft.Extensions.Configuration;
+using MUGS_bot.Helpers;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -8,7 +9,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace MUGS_bot
+namespace MUGS_bot.Services
 {
     public class LevelCatalogService
     {
@@ -46,7 +47,6 @@ namespace MUGS_bot
                     throw new InvalidOperationException("Empty level CSV");
                 csv.ReadHeader();
 
-                // Prepare
                 var next = new LevelThresholds();
 
                 while (await csv.ReadAsync())
@@ -54,7 +54,6 @@ namespace MUGS_bot
                     var rec = csv.Parser.Record;
                     if (rec is null || rec.Length == 0) continue;
 
-                    // Indices: A..O
                     string? a = rec.ElementAtOrDefault(0);  // Socials Level
                     string? c = rec.ElementAtOrDefault(2);  // Socials Total
                     string? d = rec.ElementAtOrDefault(3);  // Knowledge Level

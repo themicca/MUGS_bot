@@ -1,10 +1,12 @@
 ﻿using System.Text;
 using Microsoft.AspNetCore.ResponseCompression;
+using MUGS_bot.Helpers;
+using MUGS_bot.Services;
 using NetCord;
 using NetCord.Rest;
 using NetCord.Services.ApplicationCommands;
 
-namespace MUGS_bot;
+namespace MUGS_bot.Modules;
 
 public class XpModule : ApplicationCommandModule<ApplicationCommandContext>
 {
@@ -22,23 +24,23 @@ public class XpModule : ApplicationCommandModule<ApplicationCommandContext>
     }
 
 
-    [SlashCommand("addsocialsxp", "Add XP in Socials category")]
+    [SlashCommand("addsocialsxp", "Sociální sítě/Socials")]
     public async Task AddSocialsXpAsync(int amount, User user)
         => await AddCategoryXpAsync(XpCategory.Socials, amount, user);
 
-    [SlashCommand("addknowledgexp", "Add XP in Knowledge category")]
+    [SlashCommand("addknowledgexp", "Vědomosti/Knowledge")]
     public async Task AddKnowledgeXpAsync(int amount, User user)
         => await AddCategoryXpAsync(XpCategory.Knowledge, amount, user);
 
-    [SlashCommand("addgamemakingxp", "Add XP in GameMaking category")]
+    [SlashCommand("addgamemakingxp", "Tvorba her/Game making")]
     public async Task AddGameMakingXpAsync(int amount, User user)
         => await AddCategoryXpAsync(XpCategory.GameMaking, amount, user);
 
-    [SlashCommand("addsocializingxp", "Add XP in Socializing category")]
+    [SlashCommand("addsocializingxp", "Socializace/Socializing")]
     public async Task AddSocializingXpAsync(int amount, User user)
         => await AddCategoryXpAsync(XpCategory.Socializing, amount, user);
 
-    [SlashCommand("addhelpingxp", "Add XP in Helping category")]
+    [SlashCommand("addhelpingxp", "Pomoc MUGS/Helping MUGS")]
     public async Task AddHelpingXpAsync(int amount, User user)
         => await AddCategoryXpAsync(XpCategory.Helping, amount, user);
 
@@ -47,6 +49,15 @@ public class XpModule : ApplicationCommandModule<ApplicationCommandContext>
         if (Context.Guild is null)
         {
             await Respond("❌ This command can only be used in a server.");
+            return;
+        }
+
+        var member = await Context.Guild.GetUserAsync(Context.User.Id);
+        var perms = member.GetPermissions(Context.Guild);
+        if ((perms & Permissions.Administrator) != Permissions.Administrator ||
+            (perms & Permissions.ManageGuild) != Permissions.ManageGuild)
+        {
+            await Respond("Only admins can assign xp.");
             return;
         }
 
@@ -62,20 +73,17 @@ public class XpModule : ApplicationCommandModule<ApplicationCommandContext>
         var lvlAfter = state.Categories[category].Level =
             state.Categories[category].Level = _xp.LevelForXp(category, state.Categories[category].Xp, thresholds);
 
-        // save (same as your _xp.Save())
         _xp.Save();
 
-        // if level increased, sync roles
         if (lvlAfter > lvlBefore)
             await _roleSync.SyncCategoryRoleAsync(Context.Guild, target.Id, category, lvlAfter);
 
-        // confirmation
         var msg = $"✅ Added **{amount} XP** to **{CatName(category)}** for <@{target.Id}>.\n" +
                   $"Now at {state.Categories[category].Xp} XP (Level {lvlAfter}).";
         await Respond(msg);
     }
 
-    [SlashCommand("addxp", "Grant XP by catalog row number to a user (admin only).")]
+    [SlashCommand("addxp", "Adds xp to a user based on row number.")]
     public async Task AddXpAsync(
         [SlashCommandParameter(Description = "Row number from the first column of the XP sheet")]
         int row,
@@ -191,7 +199,7 @@ public class XpModule : ApplicationCommandModule<ApplicationCommandContext>
             await Respond(chunk);
     }
 
-    [SlashCommand("xprefresh", "Force reload of the XP sheet (admin only).")]
+    [SlashCommand("xprefresh", "Force reload of the XP sheet.")]
     public async Task XpRefreshAsync()
     {
         if (Context.Guild is null)
@@ -214,7 +222,7 @@ public class XpModule : ApplicationCommandModule<ApplicationCommandContext>
         await Respond($"🔄 Reloaded XP catalog. Rows: {rows.Count}.");
     }
 
-    [SlashCommand("lvlrefresh", "Force reload of the Level sheet (admin only).")]
+    [SlashCommand("lvlrefresh", "Force reload of the Level sheet.")]
     public async Task LvlRefreshAsync()
     {
         if (Context.Guild is null)
@@ -236,7 +244,7 @@ public class XpModule : ApplicationCommandModule<ApplicationCommandContext>
         await Respond(ok ? "🔄 Level thresholds reloaded." : $"❌ {err}");
     }
 
-    [SlashCommand("resetuser", "Reset XP, levels, logs and level roles for a user (admin only).")]
+    [SlashCommand("resetuser", "Reset XP, levels, logs and level roles for a user.")]
     public async Task ResetUserCmdAsync([SlashCommandParameter(Description = "User to reset (optional)")] User? user = null)
     {
         if (Context.Guild is null)

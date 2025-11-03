@@ -7,7 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace MUGS_bot
+namespace MUGS_bot.Services
 {
     public class LevelCatalogRefresher : BackgroundService
     {

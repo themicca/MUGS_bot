@@ -1,6 +1,8 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using MUGS_bot.Modules;
+using MUGS_bot.Services;
 using NetCord;
 using NetCord.Gateway;
 using NetCord.Hosting.Gateway;
@@ -43,6 +45,7 @@ namespace MUGS_bot
             builder.Services.AddSingleton<LevelCatalogService>();
             builder.Services.AddHostedService<LevelCatalogRefresher>();
             builder.Services.AddSingleton<RoleSyncService>();
+            builder.Services.AddSingleton<HelpCatalog>(_ => new HelpCatalog(typeof(Program).Assembly));
 
             var app = builder.Build();
 

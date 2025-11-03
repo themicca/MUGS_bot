@@ -1,10 +1,11 @@
 ﻿using CsvHelper;
 using CsvHelper.Configuration;
 using Microsoft.Extensions.Configuration;
+using MUGS_bot.Helpers;
+using MUGS_bot.Models;
 using System.Globalization;
-using System.Text.RegularExpressions;
 
-namespace MUGS_bot;
+namespace MUGS_bot.Services;
 
 public class XpCatalogService
 {
@@ -12,7 +13,7 @@ public class XpCatalogService
     private readonly string _csvUrl;
     private readonly SemaphoreSlim _gate = new(1, 1);
 
-    private List<CatalogRow> _current = new();   // in-memory snapshot
+    private List<CatalogRow> _current = new();
 
     public XpCatalogService(IHttpClientFactory http, IConfiguration cfg)
     {
@@ -20,11 +21,11 @@ public class XpCatalogService
         _csvUrl = cfg["XpSheet:CsvUrl"] ?? throw new InvalidOperationException("Missing XpSheet:CsvUrl");
     }
 
-    /// Returns the latest in-memory snapshot (never hits the network).
+
     public Task<List<CatalogRow>> GetCatalogAsync()
         => Task.FromResult(_current);
 
-    /// Refreshes the in-memory snapshot from Google (network).
+
     public async Task<(bool ok, int rows, string? error)> RefreshAsync(CancellationToken ct = default)
     {
         await _gate.WaitAsync(ct);
@@ -42,21 +43,17 @@ public class XpCatalogService
                 MissingFieldFound = null,
             });
 
-            // 1) Read and discard the header ONCE
             if (!await csv.ReadAsync())
                 throw new InvalidOperationException("Empty CSV");
             csv.ReadHeader();
 
-            // 2) Iterate records reliably
             var rows = new List<CatalogRow>();
 
             while (await csv.ReadAsync())
             {
-                // Get the whole record in one shot
-                var record = csv.Parser.Record; // string[] of the current row
+                var record = csv.Parser.Record;
                 if (record == null || record.Length == 0) continue;
 
-                // Safely index columns (A=0, B=1, C=2, ...)
                 string? a = record.ElementAtOrDefault(0); // row number
                 string? b = record.ElementAtOrDefault(1); // title
                 string? c = record.ElementAtOrDefault(2);
@@ -65,24 +62,20 @@ public class XpCatalogService
                 string? f = record.ElementAtOrDefault(5);
                 string? g = record.ElementAtOrDefault(6);
 
-                // Parse number in column A
                 if (!int.TryParse(a?.Trim(), out var rowNumber) || rowNumber <= 0)
-                    continue; // skip header/title/blank rows
+                    continue;
 
                 var title = (b ?? "").Trim();
                 if (string.IsNullOrWhiteSpace(title) ||
                     title.Contains("název", StringComparison.OrdinalIgnoreCase))
                     continue;
 
-                // Parse category cells like "8 XP"
                 int ParseXp(string? s)
                 {
                     if (string.IsNullOrWhiteSpace(s)) return 0;
                     var span = s.AsSpan().Trim();
-                    // fast path: just number
                     if (int.TryParse(span, out var n)) return n;
-                    // slow path: look for digits before "XP"
-                    var idx = span.IndexOf('X'); // cheap check
+                    var idx = span.IndexOf('X');
                     return idx > 0 && int.TryParse(new string(span[..idx]).Trim(), out n) ? n : 0;
                 }
 
@@ -102,7 +95,6 @@ public class XpCatalogService
                 });
             }
 
-            // atomically swap your cache
             _current = rows;
             return (true, rows.Count, null);
         }
